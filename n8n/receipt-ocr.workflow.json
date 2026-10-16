@@ -1,0 +1,179 @@
+{
+  "name": "Catatan Rumah – Receipt OCR API",
+  "nodes": [
+    {
+      "id": "a92c7435-5391-4150-8b9e-d818539d7f08",
+      "name": "Webhook OCR",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "dcd6ca0d-63ae-41e2-91a2-3009a169cb7b",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "catatan-rumah/receipt-ocr",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "WAFo088uY4bwp4j5",
+          "name": "Catatan Rumah – Webhook Secret"
+        }
+      }
+    },
+    {
+      "id": "dcc2d101-d545-45b0-873a-405a43589f2f",
+      "name": "Siapkan request Gemini",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Validasi payload dari app Catatan Rumah lalu susun request Gemini (output JSON terstruktur).\nconst body = $input.first().json.body ?? {};\nconst allowed = ['image/jpeg', 'image/png', 'image/webp'];\nif (typeof body.imageBase64 !== 'string' || body.imageBase64.length < 100 || !allowed.includes(body.mimeType)) {\n  throw new Error('Payload OCR tidak valid');\n}\nconst categories = (Array.isArray(body.categories) ? body.categories : [])\n  .filter((c) => typeof c === 'string' && c.length <= 60)\n  .slice(0, 50);\nconst today = /^\\d{4}-\\d{2}-\\d{2}$/.test(body.today ?? '') ? body.today : new Date().toISOString().slice(0, 10);\n\nconst prompt = [\n  'Kamu membaca foto nota/struk belanja dari Indonesia. Ekstrak datanya ke JSON sesuai schema.',\n  'Aturan:',\n  '- merchant: nama toko lengkap = merek/jaringan + cabang jika tertulis (contoh: \"Indomaret Plus Pamekasan\", \"Alfamart Rungkut\"), huruf kapital wajar, tanpa alamat jalan. null jika tidak terbaca.',\n  '- date: tanggal transaksi format YYYY-MM-DD. Nota Indonesia biasanya DD/MM/YY, DD-MM-YYYY, atau DD.MM.YYYY (hari dulu, lalu bulan). Tahun 2 digit = 20xx.',\n  '  Jika tanggal tidak terlihat, isi null. Jangan menebak. Sebagai konteks, hari ini ' + today + '.',\n  '- items: setiap baris barang yang dibeli. name = nama barang dirapikan (huruf kapital wajar, singkatan umum boleh diperjelas).',\n  '  qty = jumlah (default 1). unit_price = harga satuan. total = harga baris (qty x harga, setelah diskon item jika ada).',\n  '  Abaikan baris yang bukan barang: subtotal, PPN, tunai, kembalian, poin, member, voucher, kartu.',\n  '- subtotal, discount (total diskon, angka positif), tax: angka atau null.',\n  '- total: jumlah yang harus dibayar (TOTAL / GRAND TOTAL), bukan uang tunai atau kembalian.',\n  '- category: pilih SATU dari daftar ini yang paling cocok untuk keseluruhan nota, tulis persis sama:',\n  '  ' + (categories.length ? JSON.stringify(categories) : '[]') + '. Jika tidak ada yang cocok, null.',\n  '- Semua nominal dalam rupiah sebagai angka bulat tanpa pemisah ribuan (25.500 menjadi 25500).',\n  '- Jika gambar bukan nota atau tidak bisa dibaca, isi error dengan alasan singkat dan field lain null.',\n].join('\\n');\n\nconst num = { type: 'NUMBER', nullable: true };\nconst geminiPayload = {\n  contents: [{ role: 'user', parts: [{ text: prompt }, { inline_data: { mime_type: body.mimeType, data: body.imageBase64 } }] }],\n  generationConfig: {\n    temperature: 0,\n    // Thinking dimatikan: untuk nota, thinking memakan ~95% token & waktu tanpa menambah akurasi berarti.\n    thinkingConfig: { thinkingBudget: 0 },\n    responseMimeType: 'application/json',\n    responseSchema: {\n      type: 'OBJECT',\n      properties: {\n        error: { type: 'STRING', nullable: true },\n        merchant: { type: 'STRING', nullable: true },\n        date: { type: 'STRING', nullable: true },\n        category: { type: 'STRING', nullable: true },\n        items: {\n          type: 'ARRAY',\n          items: {\n            type: 'OBJECT',\n            properties: { name: { type: 'STRING' }, qty: num, unit_price: num, total: num },\n            required: ['name'],\n          },\n        },\n        subtotal: num,\n        discount: num,\n        tax: num,\n        total: num,\n      },\n      required: ['items'],\n    },\n  },\n};\nreturn [{ json: { scanId: body.scanId ?? null, geminiPayload } }];"
+      }
+    },
+    {
+      "id": "855fcbbc-bd16-49b6-aa33-8690081e77c0",
+      "name": "Gemini OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.geminiPayload) }}",
+        "options": {
+          "timeout": 80000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zEkQZNj61Diwfnkm",
+          "name": "Gemini – Catatan Rumah"
+        }
+      }
+    },
+    {
+      "id": "27bdce9b-5bb8-4059-bed1-dc8aa8c9a55a",
+      "name": "Parse hasil",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "// Ambil teks JSON dari balasan Gemini. Jika gagal, kembalikan { error } agar app menampilkan \"nota tidak terbaca\".\nconst res = $input.first().json;\nconst cand = res.candidates?.[0];\nconst text = (cand?.content?.parts ?? []).map((p) => p.text ?? '').join('').trim();\nlet data;\ntry {\n  data = JSON.parse(text);\n} catch {\n  data = { error: 'Balasan AI tidak bisa dibaca' + (cand?.finishReason ? ' (' + cand.finishReason + ')' : '') };\n}\nif (!data || typeof data !== 'object' || Array.isArray(data)) data = { error: 'Format balasan AI tidak sesuai' };\nreturn [{ json: data }];"
+      }
+    },
+    {
+      "id": "c2a2ee67-cbee-47a9-ae73-227db18305b8",
+      "name": "Balas hasil OCR",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "b440b43f-5d6f-4d4d-9b29-3daeedd695a4",
+      "name": "Balas error Gemini",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ upstreamError: true }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook OCR": {
+      "main": [
+        [
+          {
+            "node": "Siapkan request Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siapkan request Gemini": {
+      "main": [
+        [
+          {
+            "node": "Gemini OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini OCR": {
+      "main": [
+        [
+          {
+            "node": "Parse hasil",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Balas error Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse hasil": {
+      "main": [
+        [
+          {
+            "node": "Balas hasil OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  }
+}

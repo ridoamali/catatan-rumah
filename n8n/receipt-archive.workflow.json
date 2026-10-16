@@ -1,0 +1,158 @@
+{
+  "name": "Catatan Rumah – Receipt Archive (Drive)",
+  "nodes": [
+    {
+      "id": "e2c47ae1-f323-4443-9787-983a8d226671",
+      "name": "Webhook Arsip",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "973087f3-f66f-4bd3-862e-e3387663ac3e",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "catatan-rumah/receipt-archive",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "WAFo088uY4bwp4j5",
+          "name": "Catatan Rumah – Webhook Secret"
+        }
+      }
+    },
+    {
+      "id": "bbf8d3b7-f21c-4c90-b9ed-68b98f0b8ef9",
+      "name": "Siapkan file",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Ubah base64 dari app menjadi file biner untuk diupload ke Google Drive.\nconst b = $input.first().json.body ?? {};\nconst ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[b.mimeType];\nif (typeof b.imageBase64 !== 'string' || b.imageBase64.length < 100 || !ext) {\n  throw new Error('Payload arsip tidak valid');\n}\nconst fileName = String(b.fileName || 'nota_' + Date.now() + '.' + ext).replace(/[^\\w.\\- ]/g, '_').slice(0, 120);\nreturn [{\n  json: { fileName, transactionId: b.transactionId ?? null },\n  binary: { data: { data: b.imageBase64, mimeType: b.mimeType, fileName, fileExtension: ext } },\n}];"
+      }
+    },
+    {
+      "id": "ceeb7fb1-6f7d-4904-a488-969cad6b5ea6",
+      "name": "Upload ke Nota Belanja",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        480,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "name": "={{ $json.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": ""
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "h5GGqr9s5GXgEYpf",
+          "name": "Google Drive – Catatan Rumah"
+        }
+      }
+    },
+    {
+      "id": "2188fd70-d031-44c9-b5c3-5d7106a2053a",
+      "name": "Balas link Drive",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ fileId: $json.id, webViewLink: $json.webViewLink || ('https://drive.google.com/file/d/' + $json.id + '/view') }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "205d46af-bc1e-4aa0-8f48-bf707964e5d0",
+      "name": "Balas error Drive",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ upstreamError: true }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Arsip": {
+      "main": [
+        [
+          {
+            "node": "Siapkan file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siapkan file": {
+      "main": [
+        [
+          {
+            "node": "Upload ke Nota Belanja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload ke Nota Belanja": {
+      "main": [
+        [
+          {
+            "node": "Balas link Drive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Balas error Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": false
+  }
+}

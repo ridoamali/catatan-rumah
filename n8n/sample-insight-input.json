@@ -1,0 +1,41 @@
+{
+  "input": {
+    "month": "2026-09",
+    "isCurrentMonth": false,
+    "daysElapsed": 30,
+    "daysInMonth": 30,
+    "totals": { "income": 9500000, "expense": 6820000, "net": 2680000 },
+    "previousMonths": [
+      { "month": "2026-08", "expense": 5900000, "income": 9500000 },
+      { "month": "2026-07", "expense": 6100000, "income": 9500000 },
+      { "month": "2026-06", "expense": 5750000, "income": 9200000 }
+    ],
+    "avgExpensePrev3": 5916667,
+    "expenseChangeVsAvgPct": 15.3,
+    "categories": [
+      { "name": "Belanja Dapur", "spent": 2650000, "budget": 2500000, "budgetUsedPct": 106, "avgPrev3": 2200000, "changeVsAvgPct": 20.5 },
+      { "name": "Makan di Luar", "spent": 1180000, "budget": 800000, "budgetUsedPct": 147.5, "avgPrev3": 750000, "changeVsAvgPct": 57.3 },
+      { "name": "Transportasi", "spent": 900000, "budget": null, "budgetUsedPct": null, "avgPrev3": 950000, "changeVsAvgPct": -5.3 },
+      { "name": "Tagihan & Utilitas", "spent": 1350000, "budget": 1400000, "budgetUsedPct": 96.4, "avgPrev3": 1330000, "changeVsAvgPct": 1.5 },
+      { "name": "Kesehatan", "spent": 740000, "budget": null, "budgetUsedPct": null, "avgPrev3": 120000, "changeVsAvgPct": 516.7 }
+    ],
+    "topMerchants": [
+      { "name": "Indomaret Plus Pamekasan", "total": 1240000, "count": 9 },
+      { "name": "Superindo Rungkut", "total": 980000, "count": 3 },
+      { "name": "PLN", "total": 650000, "count": 1 },
+      { "name": "Apotek K-24", "total": 640000, "count": 2 },
+      { "name": "GrabFood", "total": 610000, "count": 7 }
+    ],
+    "largestTransactions": [
+      { "date": "2026-09-05", "merchant": "PLN", "category": "Tagihan & Utilitas", "amount": 650000 },
+      { "date": "2026-09-21", "merchant": "Apotek K-24", "category": "Kesehatan", "amount": 560000 },
+      { "date": "2026-09-14", "merchant": "Superindo Rungkut", "category": "Belanja Dapur", "amount": 425000 },
+      { "date": "2026-09-27", "merchant": "Restoran Padang Sederhana", "category": "Makan di Luar", "amount": 380000 },
+      { "date": "2026-09-02", "merchant": "Indihome", "category": "Tagihan & Utilitas", "amount": 350000 }
+    ],
+    "priceChanges": [
+      { "item": "Minyak Goreng 2L", "firstPrice": 34500, "lastPrice": 38900, "changePct": 12.8, "times": 4 },
+      { "item": "Telur 1 kg", "firstPrice": 28000, "lastPrice": 31500, "changePct": 12.5, "times": 5 }
+    ]
+  }
+}
