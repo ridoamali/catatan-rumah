@@ -8,7 +8,7 @@ Stack: Node + Fastify (API) · React + Vite (UI) · SQLite (better-sqlite3 + Dri
 ## Menjalankan lokal (macOS)
 
 ```bash
-node -v                # harus >= 20.19
+node -v                # harus >= 22.12 (Docker memakai Node 24)
 cp .env.example .env
 npm install
 npm run dev            # API :3000 + UI :5173 (migrasi DB jalan otomatis)
@@ -23,6 +23,10 @@ open http://localhost:5173                  # status "API: terhubung · DB ok"
 ```
 
 Mode produksi lokal: `npm run build && npm start` → http://127.0.0.1:3000
+
+Deployment STB ARM64 + CasaOS/Docker: lihat [panduan deployment](deploy/README.md).
+`npm run build` membangun frontend ke `dist/` dan backend ke `dist-server/`.
+Server produksi berjalan langsung dengan Node, tanpa `tsx`.
 
 ## Struktur
 

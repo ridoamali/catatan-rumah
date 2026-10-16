@@ -1,0 +1,37 @@
+name: catatan-rumah
+services:
+  app:
+    image: ${CATATAN_IMAGE:-ghcr.io/ridoamali/catatan-rumah:main}
+    platform: linux/arm64
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./deploy/.env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      DATABASE_PATH: /app/data/catatan-rumah.db
+      RECEIPTS_DIR: /app/data/receipts
+      OCR_MOCK: "off"
+    ports:
+      - "127.0.0.1:3080:3000"
+    volumes:
+      - type: bind
+        source: /DATA/AppData/catatan-rumah/data
+        target: /app/data
+        bind:
+          create_host_path: false
+    stop_grace_period: 150s
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

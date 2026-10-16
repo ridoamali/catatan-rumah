@@ -1,0 +1,13 @@
+# Hanya source yang dibutuhkan build dikirim ke Docker.
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.server.json
+!vite.config.ts
+!index.html
+!src/
+!src/**
+!drizzle/
+!drizzle/**
+src/**/*.test.ts
