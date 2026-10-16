@@ -2,9 +2,9 @@
 
 ## Status paket
 
-File Docker dan Compose tersedia untuk Linux ARM64. Belum ada image di GHCR dari tahap ini,
-belum ada deployment di STB, dan belum ada domain/Tunnel yang diubah.
-Build image ARM64 dan uji container harus lulus sebelum rollout.
+File Docker dan Compose tersedia untuk Linux ARM64. Workflow GitHub Actions tersedia di
+`.github/workflows/container.yml`; image siap dipakai hanya setelah run terkait berhasil.
+Belum ada deployment di STB atau perubahan domain/Tunnel dari paket ini.
 
 Target runtime adalah Node 24 di Debian Bookworm, dengan dependency produksi saja.
 Backend dikompilasi TypeScript, frontend disajikan oleh Fastify dalam proses yang sama.
@@ -28,10 +28,22 @@ Tentukan juga apakah n8n dan cloudflared berjalan di STB ini, di container, atau
 
 ## Build image (tahap terpisah sebelum rollout)
 
-Rencana utamanya: GitHub Actions membangun image ARM64 dan mengirimnya ke GHCR.
-Workflow Actions belum ditambahkan pada tahap ini. Jangan menjalankan `compose pull`
-sebelum image tersedia. Gunakan tag commit atau digest yang sudah diuji untuk deployment,
-agar versi rollback jelas.
+GitHub Actions membangun image pada runner ARM64 native (`ubuntu-24.04-arm`) setiap push ke
+`main`, saat pull request, atau lewat Run workflow. Tahapannya: typecheck dan tes API,
+uji server produksi, validasi Compose, build image, lalu uji container dengan filesystem
+read-only, user non-root, cookie Secure, dan data yang bertahan setelah restart.
+Hanya push/manual di `main` yang menerbitkan image setelah semua pemeriksaan lulus.
+
+Image yang SAMA dengan yang diuji dikirim ke `ghcr.io/ridoamali/catatan-rumah:main`
+dan `ghcr.io/ridoamali/catatan-rumah:sha-<commit-penuh>`. Workflow memakai `GITHUB_TOKEN`
+dengan izin `packages: write`; tidak membutuhkan API key n8n atau secret app.
+Jangan menjalankan `compose pull` sebelum run berhasil dan image tersedia.
+Gunakan tag commit atau digest yang sudah diuji untuk deployment agar versi rollback jelas.
+
+Periksa hasil di tab Actions → Build ARM64 image. Jika run gagal, buka step merah dan
+perbaiki penyebabnya sebelum rollout. Jika tidak ada run, cek bahwa Actions diizinkan di repo.
+Untuk private repo, eksekusi memakai kuota Actions akun; izin package GHCR tetap mengikuti
+pengaturan GitHub. Paket tidak diubah menjadi publik oleh workflow ini.
 
 Untuk menguji manual pada mesin dengan Docker Buildx dan dukungan ARM64:
 
@@ -136,3 +148,5 @@ lalu jalankan image sebelumnya. Transaksi setelah waktu backup tidak ada dalam h
 
 Referensi: [Docker multi-stage builds](https://docs.docker.com/build/building/multi-stage/),
 [Docker Compose services](https://docs.docker.com/reference/compose-file/services/).
+Referensi CI: [publikasi image GitHub](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images),
+[runner ARM64](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
