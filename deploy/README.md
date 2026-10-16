@@ -7,6 +7,8 @@ File Docker dan Compose tersedia untuk Linux ARM64. Workflow GitHub Actions ters
 Belum ada deployment di STB atau perubahan domain/Tunnel dari paket ini.
 
 Target runtime adalah Node 24 di Debian Bookworm, dengan dependency produksi saja.
+Tahap build menyediakan Python/make/g++ untuk mengompilasi dependency SQLite bila diperlukan;
+alat tersebut tidak disalin ke image runtime.
 Backend dikompilasi TypeScript, frontend disajikan oleh Fastify dalam proses yang sama.
 Image berjalan sebagai user `node` (UID/GID 1000), dan hanya `/app/data` serta `/tmp` yang dapat ditulis.
 SQLite dan foto nota berada di bind mount `/DATA/AppData/catatan-rumah/data`.
