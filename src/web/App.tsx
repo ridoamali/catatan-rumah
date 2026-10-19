@@ -13,8 +13,9 @@ const BudgetsPage = lazy(() => import("./BudgetsPage"));
 const ScanPage = lazy(() => import("./ScanPage"));
 const ReportsPage = lazy(() => import("./ReportsPage"));
 const InsightsPage = lazy(() => import("./InsightsPage"));
+const RemindersPage = lazy(() => import("./RemindersPage"));
 
-export type Page = "ringkasan" | "transaksi" | "scan" | "laporan" | "analisa" | "anggaran" | "anggota";
+export type Page = "ringkasan" | "transaksi" | "scan" | "laporan" | "analisa" | "anggaran" | "anggota" | "pengingat";
 const NAV: { key: Page; label: string; icon: IconName }[] = [
   { key: "ringkasan", label: "Beranda", icon: "home" },
   { key: "transaksi", label: "Transaksi", icon: "list" },
@@ -22,10 +23,8 @@ const NAV: { key: Page; label: string; icon: IconName }[] = [
   { key: "laporan", label: "Laporan", icon: "chart" },
   { key: "anggaran", label: "Anggaran", icon: "wallet" },
   { key: "analisa", label: "Analisa AI", icon: "sparkle" },
+  { key: "pengingat", label: "Pengingat", icon: "bell" },
   { key: "anggota", label: "Anggota", icon: "users" },
-];
-const SOON: { label: string; icon: IconName }[] = [
-  { label: "Pengingat", icon: "bell" },
 ];
 
 type State =
@@ -96,12 +95,6 @@ export default function App() {
         <button type="button" className="btn primary rail-add" onClick={() => openTx(null)}>
           <Icon name="plus" size={18} />Catat transaksi
         </button>
-        <div className="rail-soon">
-          <p>Segera hadir</p>
-          {SOON.map((s) => (
-            <span key={s.label} className="rail-item soon" aria-disabled="true"><Icon name={s.icon} />{s.label}</span>
-          ))}
-        </div>
         <div className="rail-user">
           <span className="avatar" aria-hidden="true">{me.user.name.slice(0, 1).toUpperCase()}</span>
           <span className="rail-user-name">{me.user.name}<small>{me.user.role === "owner" ? "Owner" : "Anggota"}</small></span>
@@ -131,6 +124,7 @@ export default function App() {
         {page === "analisa" && <InsightsPage month={month} onMonthChange={setMonth} />}
         {page === "anggaran" && <BudgetsPage me={me} />}
         {page === "anggota" && <MembersPage me={me} onLogout={logout} />}
+        {page === "pengingat" && <RemindersPage me={me} />}
         </Suspense>
       </main>
 

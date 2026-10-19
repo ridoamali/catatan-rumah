@@ -67,6 +67,44 @@ export const invites = sqliteTable(
 export type User = typeof users.$inferSelect;
 
 // ---------------------------------------------------------------------------
+// Langkah 7: pengingat pembayaran/tagihan (in-app)
+// ---------------------------------------------------------------------------
+export const REMINDER_REPEAT = ["none", "monthly", "yearly"] as const;
+export const REMINDER_STATUS = ["active", "done"] as const;
+
+// Pengingat tagihan keluarga. Tanggal jatuh tempo berformat YYYY-MM-DD (zona
+// Asia/Jakarta, sama dengan transaksi). Pengulangan monthly = jatuh tempo tiap
+// bulan pada hari yang sama (dari dueDate), yearly = tiap tahun pada tanggal
+// yang sama. Tidak otomatis membuat transaksi — itu keputusan pengguna.
+export const reminders = sqliteTable(
+  "reminders",
+  {
+    id: id(),
+    householdId: text("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    // Nominal opsional (rupiah, bilangan bulat) — null = tanpa nominal.
+    amount: integer("amount"),
+    dueDate: text("due_date").notNull(), // YYYY-MM-DD
+    repeat: text("repeat", { enum: REMINDER_REPEAT }).notNull().default("none"),
+    note: text("note"),
+    status: text("status", { enum: REMINDER_STATUS }).notNull().default("active"),
+    // Saat status=done: kapan ditandai selesai & untuk siklus mana
+    // (YYYY-MM-DD jatuh tempo yang diselesaikan — dipakai untuk menghitung
+    // jatuh tempo berikutnya pada pengingat berulang).
+    completedAt: integer("completed_at", { mode: "timestamp_ms" }),
+    completedDueDate: text("completed_due_date"),
+    createdAt: createdAt(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("reminders_household_due_idx").on(t.householdId, t.dueDate)],
+);
+
+export type Reminder = typeof reminders.$inferSelect;
+
+// ---------------------------------------------------------------------------
 // Langkah 3: kategori, transaksi, anggaran
 // ---------------------------------------------------------------------------
 

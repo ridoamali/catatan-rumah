@@ -45,7 +45,7 @@ drizzle/      migrasi SQL (di-commit; jalan otomatis saat server start)
 - [x] 4. Scan nota (webhook n8n)
 - [x] 5. Laporan grafik
 - [x] 6. Analisa AI (webhook n8n) — app dan workflow terhubung; uji app dengan AI sungguhan lulus 16 Oktober 2026
-- [ ] 7. Pengingat
+- [x] 7. Pengingat (in-app; notification outbound menyusul, butuh approval terpisah)
 
 ## Auth (Langkah 2)
 
@@ -100,3 +100,23 @@ Di mobile, tab bar: Beranda · Transaksi · + · Scan · Laporan. Anggaran dibuk
 
 **Tidak dikirim ke AI:** catatan transaksi, nama & email anggota, nama rumah tangga, ID internal (dijaga oleh tes).
 Ringkasan yang dikirim disimpan di kolom `input_json` untuk audit.
+
+## Pengingat (Langkah 7)
+
+Pengingat tagihan/pembayaran in-app (tanpa layanan eksternal). API: `GET/POST /api/reminders`,
+`PATCH/DELETE /api/reminders/:id` — semua butuh login dan di-scope ke household.
+
+- Isi: judul, nominal opsional (rupiah, bilangan bulat), tanggal jatuh tempo `YYYY-MM-DD`
+  (maks 5 tahun ke depan), catatan opsional, dan pengulangan `none`/`monthly`/`yearly`.
+- Status: aktif/selesai, dengan klasifikasi tampilan terhadap hari ini (zona waktu rumah tangga,
+  default Asia/Jakarta): terlambat, hari ini, ≤7 hari (segera), mendatang.
+- Tandai selesai **tidak otomatis membuat transaksi** — pencatatan pembayaran tetap manual.
+- Berulang: menandai selesai mencatat siklus yang diselesaikan (`completed_due_date`) dan
+  pengingat lanjut ke siklus berikutnya (bulanan dipatok ke hari terakhir untuk bulan pendek;
+  tahunan tanggal sama). Buka kembali berarti aktif pada siklus berikutnya.
+- Di UI: halaman Pengingat di navigasi (ikon lonceng), daftar aktif terurut jatuh tempo,
+  daftar selesai yang bisa dilipat.
+
+## Deployment STB ARM64 + CasaOS/Docker
+
+Lihat [panduan deployment](deploy/README.md).

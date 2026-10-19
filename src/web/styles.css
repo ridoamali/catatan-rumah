@@ -636,3 +636,23 @@ button.avatar { border: 0; padding: 0; cursor: pointer; }
 @media (min-width: 900px) {
   .highlights { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Pengingat (Langkah 7) */
+.rem-form { display: flex; flex-direction: column; gap: 10px; }
+.rem-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.rem-row > * { flex: 1 1 150px; }
+.rem-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rem-list li { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.rem-list li:last-child { border-bottom: 0; }
+.rem-list .grow { display: flex; flex-direction: column; min-width: 0; }
+.rem-list .grow small { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.rem-list li.rem-done { opacity: 0.55; }
+.rem-list li.rem-done .grow strong { text-decoration: line-through; }
+.rem-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; background: var(--line); }
+.rem-dot.overdue { background: var(--warn); }
+.rem-dot.today { background: var(--accent); }
+.rem-dot.soon { background: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.rem-badge { font-size: 12px; font-weight: 650; white-space: nowrap; padding: 3px 10px; border-radius: var(--pill); background: var(--fill); color: var(--muted); }
+.rem-badge.overdue { color: var(--warn-text); background: color-mix(in srgb, var(--warn) 12%, var(--surface)); }
+.rem-badge.today { color: var(--accent-text); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.linklike { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; font-weight: 600; }

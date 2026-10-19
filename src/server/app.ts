@@ -13,6 +13,7 @@ import { financeRoutes } from "./routes/finance.js";
 import { scanRoutes } from "./routes/scans.js";
 import { reportRoutes } from "./routes/reports.js";
 import { insightRoutes } from "./routes/insights.js";
+import { reminderRoutes } from "./routes/reminders.js";
 
 const UNSAFE = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -52,6 +53,7 @@ export async function buildApp() {
   await app.register(scanRoutes);
   await app.register(reportRoutes);
   await app.register(insightRoutes);
+  await app.register(reminderRoutes);
 
   // Produksi: Fastify juga menyajikan hasil build frontend (dist/).
   const distDir = resolve("dist");
