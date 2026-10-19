@@ -37,12 +37,20 @@ function dueLabel(r: ReminderItem): string {
   return r.dueDate;
 }
 
+// Nominal dari tampilan terformat ke teks input (string kosong bila tanpa nominal).
+const amountText = (n: number | null) => (n === null ? "" : formatNum(n));
+
+const EMPTY_FORM = { title: "", amount: "", dueDate: "", repeat: "none" as ReminderItem["repeat"], note: "" };
+
 export default function RemindersPage({ me }: { me: Me }) {
   const [items, setItems] = useState<ReminderItem[]>([]);
   const [today, setToday] = useState(todayLocal());
   const [error, setError] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
-  const [form, setForm] = useState({ title: "", amount: "", dueDate: "", repeat: "none" as ReminderItem["repeat"], note: "" });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  // Edit mode: id pengingat yang sedang diedit. null = form untuk menambah.
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   async function load() {
     const data = await api<{ items: ReminderItem[]; today: string }>("/api/reminders");
@@ -59,24 +67,46 @@ export default function RemindersPage({ me }: { me: Me }) {
   );
   const done = useMemo(() => items.filter((r) => r.status === "done"), [items]);
 
+  // Prefill form dari item yang diedit; kolom tanggal tetap boleh diubah bebas
+  // (server memvalidasi, dan pengingat berulang di-handle lewat siklus).
+  function startEdit(r: ReminderItem) {
+    setError(null);
+    setEditingId(r.id);
+    setForm({ title: r.title, amount: amountText(r.amount), dueDate: r.dueDate, repeat: r.repeat, note: r.note ?? "" });
+    window.scrollTo({ top: 0 });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setError(null);
+  }
+
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setSaving(true);
     const amount = parseAmount(form.amount);
+    const body = {
+      title: form.title,
+      amount: amount === null ? null : amount,
+      dueDate: form.dueDate,
+      repeat: form.repeat,
+      note: form.note || null,
+    };
     try {
-      await api("/api/reminders", {
-        body: {
-          title: form.title,
-          amount: amount === null ? null : amount,
-          dueDate: form.dueDate,
-          repeat: form.repeat,
-          note: form.note || null,
-        },
-      });
-      setForm({ title: "", amount: "", dueDate: "", repeat: "none", note: "" });
-      await load();
+      if (editingId) {
+        await api(`/api/reminders/${editingId}`, { method: "PATCH", body });
+      } else {
+        await api("/api/reminders", { body });
+      }
+      setEditingId(null);
+      setForm(EMPTY_FORM);
+      await load(); // daftar diperbarui tanpa refresh halaman
     } catch (err) {
       setError(err instanceof ApiError && err.fields ? Object.values(err.fields).flat().join(" ") : (err as Error).message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -92,6 +122,7 @@ export default function RemindersPage({ me }: { me: Me }) {
 
   async function remove(r: ReminderItem) {
     setError(null);
+    if (editingId === r.id) cancelEdit();
     try {
       await api(`/api/reminders/${r.id}`, { method: "DELETE" });
       await load();
@@ -114,6 +145,7 @@ export default function RemindersPage({ me }: { me: Me }) {
       {r.status === "active" && (
         <span className={`rem-badge ${r.urgency}`} aria-live="polite">{dueLabel(r)}</span>
       )}
+      <button type="button" className="icon-btn" onClick={() => startEdit(r)} aria-label={`Edit ${r.title}`} title="Edit">✎</button>
       <button type="button" className="icon-btn" onClick={() => toggleDone(r)} aria-label={r.status === "done" ? `Buka kembali ${r.title}` : `Tandai selesai ${r.title}`} title={r.status === "done" ? "Buka kembali" : "Tandai selesai"}>
         {r.status === "done" ? "↩" : "✓"}
       </button>
@@ -130,6 +162,12 @@ export default function RemindersPage({ me }: { me: Me }) {
       {error && <p className="error" role="alert">{error}</p>}
 
       <section className="block">
+        <div className="block-head">
+          <h2>{editingId ? "Edit pengingat" : "Pengingat baru"}</h2>
+          {editingId && (
+            <button type="button" className="linklike" onClick={cancelEdit}>Batal edit</button>
+          )}
+        </div>
         <form className="rem-form" onSubmit={submit}>
           <input
             name="title"
@@ -181,9 +219,18 @@ export default function RemindersPage({ me }: { me: Me }) {
             value={form.note}
             onChange={(e) => setForm({ ...form, note: e.target.value })}
           />
-          <button type="submit" className="btn primary">
-            <Icon name="plus" size={16} />Tambah pengingat
-          </button>
+          {editingId ? (
+            <div className="rem-actions">
+              <button type="submit" className="btn primary" disabled={saving}>
+                {saving ? "Menyimpan…" : "Simpan perubahan"}
+              </button>
+              <button type="button" className="btn" onClick={cancelEdit} disabled={saving}>Batal</button>
+            </div>
+          ) : (
+            <button type="submit" className="btn primary" disabled={saving}>
+              {saving ? "Menyimpan…" : <><Icon name="plus" size={16} />Tambah pengingat</>}
+            </button>
+          )}
         </form>
       </section>
 

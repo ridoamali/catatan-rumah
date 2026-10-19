@@ -148,6 +148,40 @@ describe("pengingat — selesai & berulang", () => {
     assert.equal(patched.repeat, "monthly");
     assert.equal(patched.note, "Speedy");
   });
+  it("edit semua field (alur UI Edit) — judul, nominal, tanggal, catatan, pengulangan", async () => {
+    const r = (await req("POST", "/api/reminders", member, { title: "Listrik", amount: 350000, dueDate: "2026-11-05" })).json().reminder;
+    const patched = (await req("PATCH", `/api/reminders/${r.id}`, member, {
+      title: "Listrik Token", amount: 400000, dueDate: "2026-11-10", repeat: "monthly", note: "Token 100k",
+    })).json().reminder;
+    assert.equal(patched.title, "Listrik Token");
+    assert.equal(patched.amount, 400000);
+    assert.equal(patched.dueDate, "2026-11-10");
+    assert.equal(patched.repeat, "monthly");
+    assert.equal(patched.note, "Token 100k");
+    assert.equal(patched.status, "active");
+  });
+  it("edit mengosongkan nominal opsional → null", async () => {
+    const r = (await req("POST", "/api/reminders", member, { title: "Sumbangan", amount: 50000, dueDate: "2026-11-08" })).json().reminder;
+    const patched = (await req("PATCH", `/api/reminders/${r.id}`, member, { amount: null })).json().reminder;
+    assert.equal(patched.amount, null);
+    assert.equal(patched.title, "Sumbangan"); // field lain tetap
+  });
+  it("edit mengubah pengulangan none → monthly; siklus tetap di dueDate sampai selesai", async () => {
+    const r = (await req("POST", "/api/reminders", member, { title: "Iuran", dueDate: "2026-11-12" })).json().reminder;
+    const patched = (await req("PATCH", `/api/reminders/${r.id}`, member, { repeat: "monthly" })).json().reminder;
+    assert.equal(patched.repeat, "monthly");
+    assert.equal(patched.dueDate, "2026-11-12"); // belum ada siklus selesai
+    const done = (await req("PATCH", `/api/reminders/${r.id}`, member, { status: "done" })).json().reminder;
+    assert.equal(done.dueDate, "2026-12-12"); // siklus berikutnya dari completedDueDate
+  });
+  it("edit validasi tetap berlaku: tanggal buruk & nominal negatif → 400, data tak berubah", async () => {
+    const r = (await req("POST", "/api/reminders", member, { title: "Air", amount: 20000, dueDate: "2026-11-09" })).json().reminder;
+    assert.equal((await req("PATCH", `/api/reminders/${r.id}`, member, { dueDate: "09-11-2026" })).statusCode, 400);
+    assert.equal((await req("PATCH", `/api/reminders/${r.id}`, member, { amount: -1 })).statusCode, 400);
+    const after = (await req("GET", "/api/reminders", member)).json().items.find((x: { id: string }) => x.id === r.id);
+    assert.equal(after.dueDate, "2026-11-09");
+    assert.equal(after.amount, 20000);
+  });
   it("urutan daftar berdasar jatuh tempo", async () => {
     await req("POST", "/api/reminders", owner, { title: "C", dueDate: "2026-11-20" });
     await req("POST", "/api/reminders", owner, { title: "A", dueDate: "2026-11-03" });

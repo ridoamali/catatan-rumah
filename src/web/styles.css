@@ -656,3 +656,5 @@ button.avatar { border: 0; padding: 0; cursor: pointer; }
 .rem-badge.overdue { color: var(--warn-text); background: color-mix(in srgb, var(--warn) 12%, var(--surface)); }
 .rem-badge.today { color: var(--accent-text); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 .linklike { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; font-weight: 600; }
+.rem-actions { display: flex; gap: 10px; }
+.rem-actions .btn[disabled], .rem-form .btn[disabled] { opacity: 0.6; cursor: wait; }
