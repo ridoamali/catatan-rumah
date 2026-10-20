@@ -154,7 +154,7 @@ export default function App() {
         {page === "analisa" && <InsightsPage month={month} onMonthChange={setMonth} />}
         {page === "anggaran" && <BudgetsPage me={me} />}
         {page === "anggota" && <MembersPage me={me} onLogout={logout} />}
-        {page === "pengingat" && <RemindersPage me={me} />}
+        {page === "pengingat" && <RemindersPage me={me} onMutate={() => setRefreshKey((k) => k + 1)} />}
         </Suspense>
       </main>
 

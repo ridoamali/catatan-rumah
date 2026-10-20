@@ -120,6 +120,61 @@ describe("pengingat — isolation household", () => {
   });
 });
 
+describe("pengingat — tanggal lampau & urgensi (QA STEP 14.2.1)", () => {
+  // Tanggal relatif runtime agar tes tidak usang: kemarin, hari ini (WIB), besok.
+  const wibToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const shift = (iso: string, days: number) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    const t = new Date(Date.UTC(y, m - 1, d + days));
+    return t.toISOString().slice(0, 10);
+  };
+  const yesterday = shift(wibToday, -1);
+  const tomorrow = shift(wibToday, 1);
+
+  it("membuat pengingat dengan tanggal lampau (tagihan tertunggak) → 201 dan urgency overdue", async () => {
+    const res = await req("POST", "/api/reminders", owner, { title: "Tagihan lewat", dueDate: yesterday });
+    assert.equal(res.statusCode, 201);
+    const r = res.json().reminder;
+    assert.equal(r.dueDate, yesterday);
+    assert.equal(r.urgency, "overdue");
+    assert.ok(r.daysLeft < 0);
+  });
+  it("due today → urgency 'today', BUKAN overdue (badge tidak bertambah)", async () => {
+    const res = await req("POST", "/api/reminders", owner, { title: "Jatuh tempo hari ini", dueDate: wibToday });
+    assert.equal(res.statusCode, 201);
+    const r = res.json().reminder;
+    assert.equal(r.urgency, "today");
+    assert.equal(r.daysLeft, 0);
+  });
+  it("due besok → urgency bukan overdue/today", async () => {
+    const res = await req("POST", "/api/reminders", owner, { title: "Besok", dueDate: tomorrow });
+    assert.equal(res.statusCode, 201);
+    assert.ok(["soon", "upcoming"].includes(res.json().reminder.urgency));
+  });
+  it("edit tanggal jadi lampau tetap diterima (perbaikan record tertunggak)", async () => {
+    const r = (await req("POST", "/api/reminders", owner, { title: "Koreksi", dueDate: tomorrow })).json().reminder;
+    const patched = (await req("PATCH", `/api/reminders/${r.id}`, owner, { dueDate: yesterday })).json().reminder;
+    assert.equal(patched.dueDate, yesterday);
+    assert.equal(patched.urgency, "overdue");
+  });
+  it("complete overdue berulang → siklus berikutnya, tidak lagi overdue; buka kembali tetap siklus baru", async () => {
+    const r = (await req("POST", "/api/reminders", owner, { title: "Listrik lewat", dueDate: shift(wibToday, -10), repeat: "monthly" })).json().reminder;
+    assert.equal(r.urgency, "overdue");
+    const done = (await req("PATCH", `/api/reminders/${r.id}`, owner, { status: "done" })).json().reminder;
+    assert.notEqual(done.urgency, "overdue"); // siklus berikutnya di depan
+    const reopen = (await req("PATCH", `/api/reminders/${r.id}`, owner, { status: "active" })).json().reminder;
+    assert.notEqual(reopen.urgency, "overdue");
+  });
+  it("hapus overdue menghilangkannya dari daftar (badge turun setelah refetch)", async () => {
+    const r = (await req("POST", "/api/reminders", owner, { title: "Sementara", dueDate: yesterday })).json().reminder;
+    let list = (await req("GET", "/api/reminders", owner)).json().items;
+    assert.ok(list.some((x: { id: string }) => x.id === r.id));
+    await req("DELETE", `/api/reminders/${r.id}`, owner);
+    list = (await req("GET", "/api/reminders", owner)).json().items;
+    assert.ok(!list.some((x: { id: string }) => x.id === r.id));
+  });
+});
+
 describe("pengingat — selesai & berulang", () => {
   it("sekali selesai → status done, tetap di daftar", async () => {
     const r = (await req("POST", "/api/reminders", owner, { title: "BPJS", amount: 200000, dueDate: "2026-11-10" })).json().reminder;
