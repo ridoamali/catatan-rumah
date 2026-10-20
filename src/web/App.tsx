@@ -4,7 +4,7 @@ import AuthScreen from "./AuthScreen";
 import SummaryPage from "./SummaryPage";
 import TransactionsPage from "./TransactionsPage";
 import TxSheet from "./TxSheet";
-import { currentMonth } from "./format";
+import { currentMonth, todayJakarta } from "./format";
 import { Icon, type IconName } from "./ui";
 
 // Halaman yang jarang dibuka dimuat terpisah agar Beranda terbuka lebih cepat.
@@ -14,6 +14,7 @@ const ScanPage = lazy(() => import("./ScanPage"));
 const ReportsPage = lazy(() => import("./ReportsPage"));
 const InsightsPage = lazy(() => import("./InsightsPage"));
 const RemindersPage = lazy(() => import("./RemindersPage"));
+import { overdueCount, badgeLabel, type ReminderItem } from "./RemindersPage";
 
 export type Page = "ringkasan" | "transaksi" | "scan" | "laporan" | "analisa" | "anggaran" | "anggota" | "pengingat";
 const NAV: { key: Page; label: string; icon: IconName }[] = [
@@ -39,6 +40,24 @@ export default function App() {
   const [month, setMonth] = useState(currentMonth());
   const [sheet, setSheet] = useState<{ open: boolean; editing: Transaction | null }>({ open: false, editing: null });
   const [refreshKey, setRefreshKey] = useState(0);
+  // Status pengingat untuk badge topbar & kartu Beranda; dimuat ulang saat
+  // refreshKey berubah (setelah tambah/edit/selesai/hapus pengingat dari
+  // halaman Pengingat) — satu fetch, dipakai dua tempat tanpa duplikasi state.
+  const [reminders, setReminders] = useState<ReminderItem[]>([]);
+  const [remToday, setRemToday] = useState(todayJakarta());
+
+  const refreshReminders = useCallback(async () => {
+    try {
+      const d = await api<{ items: ReminderItem[]; today: string }>("/api/reminders");
+      setReminders(d.items);
+      setRemToday(d.today);
+    } catch {
+      // Badge/kartu pengingat bersifat pelengkap; biarkan kosong saat gagal.
+    }
+  }, []);
+  useEffect(() => {
+    refreshReminders();
+  }, [refreshReminders, refreshKey]);
 
   const refresh = useCallback(async () => {
     try {
@@ -80,6 +99,11 @@ export default function App() {
     window.scrollTo({ top: 0 });
   };
 
+  // Badge lonceng: jumlah pengingat terlambat (1–9, lalu 9+). Server sudah
+  // menghitung urgensi memakai zona waktu rumah tangga; due today bukan overdue.
+  const overdue = overdueCount(reminders);
+  const badge = badgeLabel(overdue);
+
   return (
     <div className="shell">
       <aside className="rail" aria-label="Navigasi utama">
@@ -104,15 +128,21 @@ export default function App() {
 
       <header className="topbar">
         <div className="wordmark">catatan rumah<span>.</span></div>
-        <button type="button" className="avatar" onClick={() => go("anggota")} aria-label={`Anggota & akun (${me.user.name})`}>
-          {me.user.name.slice(0, 1).toUpperCase()}
-        </button>
+        <div className="topbar-actions">
+          <button type="button" className="icon-btn topbar-bell" onClick={() => go("pengingat")} aria-label={`Pengingat${overdue > 0 ? `, ${overdue} terlambat` : ""}`} title="Pengingat">
+            <Icon name="bell" size={20} />
+            {badge && <span className="bell-badge" aria-hidden="true">{badge}</span>}
+          </button>
+          <button type="button" className="avatar" onClick={() => go("anggota")} aria-label={`Anggota & akun (${me.user.name})`}>
+            {me.user.name.slice(0, 1).toUpperCase()}
+          </button>
+        </div>
       </header>
 
       <main className="content">
         <Suspense fallback={<p className="center-inline muted">Memuat…</p>}>
         {page === "ringkasan" && (
-          <SummaryPage me={me} month={month} onMonthChange={setMonth} refreshKey={refreshKey} onOpenTx={openTx} onGo={go} />
+          <SummaryPage me={me} month={month} onMonthChange={setMonth} refreshKey={refreshKey} onOpenTx={openTx} onGo={go} reminders={reminders} today={remToday} />
         )}
         {page === "transaksi" && (
           <TransactionsPage month={month} onMonthChange={setMonth} refreshKey={refreshKey} onOpenTx={openTx} />
@@ -120,11 +150,11 @@ export default function App() {
         {page === "scan" && (
           <ScanPage onSaved={(d) => { setMonth(d.slice(0, 7)); setRefreshKey((k) => k + 1); }} onOpenTransactions={() => go("transaksi")} />
         )}
-        {page === "laporan" && <ReportsPage />}
+        {page === "laporan" && <ReportsPage onGoAI={() => go("analisa")} />}
         {page === "analisa" && <InsightsPage month={month} onMonthChange={setMonth} />}
         {page === "anggaran" && <BudgetsPage me={me} />}
         {page === "anggota" && <MembersPage me={me} onLogout={logout} />}
-        {page === "pengingat" && <RemindersPage me={me} />}
+        {page === "pengingat" && <RemindersPage me={me} onMutate={() => setRefreshKey((k) => k + 1)} />}
         </Suspense>
       </main>
 

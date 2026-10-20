@@ -37,14 +37,22 @@ function dueLabel(r: ReminderItem): string {
   return r.dueDate;
 }
 
+/** Jumlah pengingat aktif yang terlambat (sudah melewati jatuh tempo siklus
+ * berjalan). Due today TIDAK dihitung terlambat. Badge menampilkan 1–9, lalu 9+. */
+export function overdueCount(items: ReminderItem[]): number {
+  return items.filter((r) => r.status === "active" && r.urgency === "overdue").length;
+}
+
+export const badgeLabel = (n: number): string | null => (n <= 0 ? null : n > 9 ? "9+" : String(n));
+
 // Nominal dari tampilan terformat ke teks input (string kosong bila tanpa nominal).
 const amountText = (n: number | null) => (n === null ? "" : formatNum(n));
 
 const EMPTY_FORM = { title: "", amount: "", dueDate: "", repeat: "none" as ReminderItem["repeat"], note: "" };
 
-export default function RemindersPage({ me }: { me: Me }) {
+export default function RemindersPage({ me, onMutate }: { me: Me; onMutate?: () => void }) {
   const [items, setItems] = useState<ReminderItem[]>([]);
-  const [today, setToday] = useState(todayLocal());
+  const [today, setToday] = useState(todayLocal()); // tampilan info; server yang menentukan urgensi
   const [error, setError] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -103,6 +111,7 @@ export default function RemindersPage({ me }: { me: Me }) {
       setEditingId(null);
       setForm(EMPTY_FORM);
       await load(); // daftar diperbarui tanpa refresh halaman
+      onMutate?.(); // beri tahu App agar badge lonceng & kartu Beranda ikut segar
     } catch (err) {
       setError(err instanceof ApiError && err.fields ? Object.values(err.fields).flat().join(" ") : (err as Error).message);
     } finally {
@@ -115,6 +124,7 @@ export default function RemindersPage({ me }: { me: Me }) {
     try {
       await api(`/api/reminders/${r.id}`, { method: "PATCH", body: { status: r.status === "done" ? "active" : "done" } });
       await load();
+      onMutate?.();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -126,6 +136,7 @@ export default function RemindersPage({ me }: { me: Me }) {
     try {
       await api(`/api/reminders/${r.id}`, { method: "DELETE" });
       await load();
+      onMutate?.();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -197,7 +208,6 @@ export default function RemindersPage({ me }: { me: Me }) {
               name="dueDate"
               required
               aria-label="Tanggal jatuh tempo"
-              min={today}
               value={form.dueDate}
               onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
             />

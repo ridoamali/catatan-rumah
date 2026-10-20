@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import { ChartCard, GroupedBars, RankBars } from "./charts";
 import { currentMonth, formatNum, formatRp, shiftMonth } from "./format";
-import { categoryEmoji } from "./ui";
+import { categoryEmoji, Icon } from "./ui";
 
 type Report = {
   from: string; to: string; months: string[];
@@ -46,7 +46,7 @@ function rangeFor(p: Preset) {
   return { from: shiftMonth(to, -(Number(p) - 1)), to };
 }
 
-export default function ReportsPage() {
+export default function ReportsPage({ onGoAI }: { onGoAI?: () => void }) {
   const [preset, setPreset] = useState<Preset>("6");
   const [r, setR] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +71,16 @@ export default function ReportsPage() {
           ))}
         </div>
       </div>
+      {onGoAI && (
+        <button type="button" className="ai-shortcut" onClick={onGoAI}>
+          <Icon name="sparkle" size={18} />
+          <span className="grow">
+            <strong>Analisa AI</strong>
+            <small>Sorotan, janggal, dan saran hemat dari data pengeluaranmu.</small>
+          </span>
+          <Icon name="chevronRight" size={16} />
+        </button>
+      )}
       {error && <p className="error" role="alert">{error}</p>}
 
       {r && (
