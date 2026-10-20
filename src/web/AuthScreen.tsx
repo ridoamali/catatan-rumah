@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { api, ApiError } from "./api";
+import { Icon } from "./ui";
 
 type Mode = "setup" | "login" | "join";
 
@@ -13,6 +14,7 @@ export default function AuthScreen({ needsSetup, onDone }: { needsSetup: boolean
   const [mode, setMode] = useState<Mode>(needsSetup ? "setup" : "login");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -65,9 +67,21 @@ export default function AuthScreen({ needsSetup, onDone }: { needsSetup: boolean
         </label>
         <label className="field">
           <span>Password</span>
-          <input name="password" type="password" required minLength={mode === "login" ? 1 : 8}
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            placeholder={mode === "login" ? undefined : "Minimal 8 karakter"} />
+          <span className="password-wrap">
+            <input name="password" type={showPassword ? "text" : "password"} required minLength={mode === "login" ? 1 : 8}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              placeholder={mode === "login" ? undefined : "Minimal 8 karakter"} />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+              aria-pressed={showPassword}
+              title={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+            >
+              <Icon name={showPassword ? "eyeOff" : "eye"} size={18} />
+            </button>
+          </span>
         </label>
 
         {error && <p className="error" role="alert">{error}</p>}

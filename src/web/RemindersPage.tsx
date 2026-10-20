@@ -37,6 +37,14 @@ function dueLabel(r: ReminderItem): string {
   return r.dueDate;
 }
 
+/** Jumlah pengingat aktif yang terlambat (sudah melewati jatuh tempo siklus
+ * berjalan). Due today TIDAK dihitung terlambat. Badge menampilkan 1–9, lalu 9+. */
+export function overdueCount(items: ReminderItem[]): number {
+  return items.filter((r) => r.status === "active" && r.urgency === "overdue").length;
+}
+
+export const badgeLabel = (n: number): string | null => (n <= 0 ? null : n > 9 ? "9+" : String(n));
+
 // Nominal dari tampilan terformat ke teks input (string kosong bila tanpa nominal).
 const amountText = (n: number | null) => (n === null ? "" : formatNum(n));
 

@@ -6,6 +6,7 @@ import { categoryEmoji, Icon } from "./ui";
 import { TxRow } from "./TransactionsPage";
 import type { Page } from "./App";
 import type { InsightResp } from "./InsightsPage";
+import type { ReminderItem } from "./RemindersPage";
 
 // Status anggaran: warna selalu disertai ikon + label (tidak mengandalkan warna saja).
 function budgetStatus(spent: number, budget: number) {
@@ -28,10 +29,11 @@ function changeSentence(cur: number, prev: number, what: string, prevMonth: stri
 }
 
 export default function SummaryPage({
-  me, month, onMonthChange, refreshKey, onOpenTx, onGo,
+  me, month, onMonthChange, refreshKey, onOpenTx, onGo, reminders, today,
 }: {
   me: Me; month: string; onMonthChange: (m: string) => void; refreshKey: number;
   onOpenTx: (t: Transaction | null) => void; onGo: (p: Page) => void;
+  reminders: ReminderItem[]; today: string;
 }) {
   const [s, setS] = useState<Summary | null>(null);
   const [recent, setRecent] = useState<Transaction[]>([]);
@@ -55,6 +57,14 @@ export default function SummaryPage({
   const monthName = monthLabel(month).split(" ")[0];
   const withBudget = s?.byCategory.filter((c) => c.budget > 0) ?? [];
   const withoutBudget = s?.byCategory.filter((c) => c.budget === 0) ?? [];
+
+  // Kartu Pengingat Terdekat: aktif saja, urut jatuh tempo siklus berjalan
+  // (server memakai zona waktu rumah tangga), maksimal 2 — overdue otomatis
+  // di depan karena dueDate-nya paling kecil.
+  const upcomingReminders = reminders
+    .filter((r) => r.status === "active")
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.id.localeCompare(b.id))
+    .slice(0, 2);
 
   // Ritme: hari berjalan vs porsi dana yang sudah terpakai (terhadap anggaran, atau pemasukan bila belum ada anggaran).
   const total = daysInMonth(month);
@@ -128,6 +138,35 @@ export default function SummaryPage({
           <button type="button" className="btn ghost" onClick={() => onGo("analisa")}>
             {insight.insight ? "Lihat analisa" : "Analisa"}
           </button>
+        </section>
+      )}
+
+      {/* Kartu Pengingat Terdekat: maksimal 2 pengingat aktif terurut jatuh
+          tempo siklus berjalan (server sudah menghitung urgensi memakai zona
+          waktu rumah tangga — bukan bulan laporan). Tanpa aksi edit/hapus. */}
+      {upcomingReminders.length > 0 && (
+        <section className="block" aria-label="Pengingat terdekat">
+          <div className="block-head">
+            <h2>Pengingat Terdekat</h2>
+            <button type="button" className="text-btn" onClick={() => onGo("pengingat")}>Lihat semua</button>
+          </div>
+          <ul className="rem-list rem-list-compact">
+            {upcomingReminders.map((r) => (
+              <li key={r.id}>
+                <span className={`rem-dot ${r.urgency}`} aria-hidden="true" />
+                <span className="grow">
+                  <strong>{r.title}</strong>
+                  <small>
+                    {r.dueDate}
+                    {r.amount !== null ? ` · ${formatRp(r.amount)}` : ""}
+                  </small>
+                </span>
+                <span className={`rem-badge ${r.urgency}`} aria-live="polite">
+                  {r.urgency === "overdue" ? "Terlambat" : r.urgency === "today" ? "Hari ini" : r.dueDate}
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
